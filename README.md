@@ -13,6 +13,7 @@ The most useful function is that it allows you to restore traces / routing after
         1. [Update PCB](#update-pcb)
         2. [Copy Traces](#copy-traces)
         3. [Lock Traces](#lock-traces)
+        4. [Copy Zones](#copy-zones)
     2. [Makefiles](#makefiles)
 
 ## Installation
@@ -164,6 +165,26 @@ positional arguments:
 
 optional arguments:
   -h, --help  show this help message and exit
+```
+
+#### Copy Zones
+
+If you add zones to your PCB in KiCad, ergogen knows nothing about them. So, the next time you run ergogen, it wipes out all your zones.
+
+This command allows you to restore the zones after you re-generate your PCB with ergogen.
+
+It also skips zones if they already exists in the destination PCB so that you can run it multiple times without worry. Matching relies on the "Zone Name" being set for each zone.
+
+```bash
+❯ python3 resources/kb_ergogen_helper/ergogen_helper.py copy-zones -h
+usage: ergogen_helper.py copy-zones [-h] src_pcb_path dst_pcb_path
+
+positional arguments:
+  src_pcb_path         The source PCB file path.
+  dst_pcb_path         The destination PCB file path.
+
+optional arguments:
+  -h, --help           show this help message and exit
 ```
 
 ### Makefiles

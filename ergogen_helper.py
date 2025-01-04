@@ -72,6 +72,27 @@ def filter_locked_traces(traces):
     return (removed_count, filtered_traces)
 
 
+def copy_zones(src_pcb, dst_pcb):
+    src_zones = [src_pcb.GetArea(a) for a in range(src_pcb.GetAreaCount())]
+    dst_zones = [dst_pcb.GetArea(a) for a in range(dst_pcb.GetAreaCount())]
+
+    zones_total = len(src_zones)
+    copied = 0
+    for z in src_zones:
+        skip = False
+        for dz in dst_zones:
+            if dz.GetZoneName() == z.GetZoneName():
+                skip = True
+                break
+
+        if skip:
+            continue
+
+        dst_pcb.Add(z)
+        copied += 1
+
+    print(f'Copied {copied} / {zones_total} zones.')
+
 def copy_traces(src_pcb, dst_pcb, unlocked_only=False):
     traces = get_traces(src_pcb)
     traces_total = len(traces)
@@ -129,6 +150,17 @@ def cmd_copy_traces(args):
         dst_pcb = pcbnew.LoadBoard(args.dst_pcb_path)
 
         copy_traces(src_pcb, dst_pcb, args.unlocked_only)
+        save_pcb(dst_pcb, not args.no_backup, args.backup_name)
+    except ErgogenHelperException as e:
+        print(f'ERROR: {e}')
+        exit(-1)
+
+def cmd_copy_zones(args):
+    try:
+        src_pcb = pcbnew.LoadBoard(args.src_pcb_path)
+        dst_pcb = pcbnew.LoadBoard(args.dst_pcb_path)
+
+        copy_zones(src_pcb, dst_pcb)
         save_pcb(dst_pcb, not args.no_backup, args.backup_name)
     except ErgogenHelperException as e:
         print(f'ERROR: {e}')
@@ -198,6 +230,21 @@ def main():
         )
     )
     copy_traces_parser.set_defaults(func=cmd_copy_traces)
+
+    # Command: copy-traces
+    copy_zones_parser = subparsers.add_parser(
+        'copy-zones',
+        help='Copy zones from source PCB to destination PCB'
+    )
+    copy_zones_parser.add_argument(
+        'src_pcb_path',
+        help='The source PCB file path.'
+    )
+    copy_zones_parser.add_argument(
+        'dst_pcb_path',
+        help='The destination PCB file path.'
+    )
+    copy_zones_parser.set_defaults(func=cmd_copy_zones)
 
     # Subcommand: lock-traces
     update_pcb = subparsers.add_parser(
