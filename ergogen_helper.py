@@ -149,6 +149,8 @@ def cmd_copy_traces(args):
         src_pcb = pcbnew.LoadBoard(args.src_pcb_path)
         dst_pcb = pcbnew.LoadBoard(args.dst_pcb_path)
 
+        src_pcb.MapNets(dst_pcb)
+
         copy_traces(src_pcb, dst_pcb, args.unlocked_only)
         save_pcb(dst_pcb, not args.no_backup, args.backup_name)
     except ErgogenHelperException as e:
@@ -159,6 +161,8 @@ def cmd_copy_zones(args):
     try:
         src_pcb = pcbnew.LoadBoard(args.src_pcb_path)
         dst_pcb = pcbnew.LoadBoard(args.dst_pcb_path)
+
+        src_pcb.MapNets(dst_pcb)
 
         copy_zones(src_pcb, dst_pcb)
         save_pcb(dst_pcb, not args.no_backup, args.backup_name)
