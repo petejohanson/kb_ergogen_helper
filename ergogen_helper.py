@@ -21,6 +21,13 @@ def get_traces(pcb):
 
     return traces
 
+def get_texts(pcb):
+    try:
+        return [item for item in pcb.GetDrawings() if type(item) is pcbnew.PCB_TEXT]
+    except Exception as e:
+        err = f'ERROR: Could not get traces: {e}'
+        raise ErgogenHelperException(err) from e
+
 
 def check_traces_equal(trace_1, trace_2):
     if (trace_1.GetStart() == trace_2.GetStart() and
@@ -28,6 +35,10 @@ def check_traces_equal(trace_1, trace_2):
         return True
     else:
         return False
+
+def check_texts_equal(text_1, text_2):
+    return (text_1.GetText() == text_2.GetText() and
+       text_1.GetLayer() == text_2.GetLayer())
 
 
 def pcb_has_trace(pcb, lookup_trace):
@@ -39,6 +50,12 @@ def pcb_has_trace(pcb, lookup_trace):
 
     return False
 
+def pcb_has_text(lookup_text, texts):
+    for pcb_text in texts:
+        if check_texts_equal(lookup_text, pcb_text) is True:
+            return True
+
+    return False
 
 def get_trace_descr(trace):
     start_x = trace.GetStart()[0] / 1000000
@@ -59,6 +76,16 @@ def filter_existing_traces(traces, pcb):
     removed_count = len(traces) - len(filtered_traces)
 
     return (removed_count, filtered_traces)
+
+def filter_existing_texts(texts, existing_texts):
+    filtered_texts = []
+    for text in texts:
+        if not pcb_has_text(text, existing_texts):
+            filtered_texts.append(text)
+
+    removed_count = len(texts) - len(filtered_texts)
+
+    return (removed_count, filtered_texts)
 
 
 def filter_locked_traces(traces):
@@ -92,6 +119,25 @@ def copy_zones(src_pcb, dst_pcb):
         copied += 1
 
     print(f'Copied {copied} / {zones_total} zones.')
+
+def copy_texts(src_pcb, dst_pcb):
+    texts = get_texts(src_pcb)
+    texts_total = len(texts)
+
+    existing_texts = get_texts(dst_pcb)
+
+    existing_num, texts = filter_existing_texts(texts, existing_texts)
+    if existing_num > 0:
+        print(f'WARN: Skipped {existing_num} existing texts')
+
+    for text in texts:
+        try:
+            dst_pcb.Add(text)
+        except Exception as e:
+            err = f'Could not copy trace: {e}'
+            raise ErgogenHelperException(err) from e
+
+    print(f'Copied {len(texts)} / {texts_total} texts.')
 
 def copy_traces(src_pcb, dst_pcb, unlocked_only=False):
     traces = get_traces(src_pcb)
@@ -144,6 +190,17 @@ def save_pcb(pcb, should_backup, backup_name):
         raise ErgogenHelperException(err) from e
 
 
+def cmd_copy_texts(args):
+    try:
+        src_pcb = pcbnew.LoadBoard(args.src_pcb_path)
+        dst_pcb = pcbnew.LoadBoard(args.dst_pcb_path)
+
+        copy_texts(src_pcb, dst_pcb)
+        save_pcb(dst_pcb, not args.no_backup, args.backup_name)
+    except ErgogenHelperException as e:
+        print(f'ERROR: {e}')
+        exit(-1)
+
 def cmd_copy_traces(args):
     try:
         src_pcb = pcbnew.LoadBoard(args.src_pcb_path)
@@ -165,6 +222,17 @@ def cmd_copy_zones(args):
         src_pcb.MapNets(dst_pcb)
 
         copy_zones(src_pcb, dst_pcb)
+        save_pcb(dst_pcb, not args.no_backup, args.backup_name)
+    except ErgogenHelperException as e:
+        print(f'ERROR: {e}')
+        exit(-1)
+
+def cmd_copy_texts(args):
+    try:
+        src_pcb = pcbnew.LoadBoard(args.src_pcb_path)
+        dst_pcb = pcbnew.LoadBoard(args.dst_pcb_path)
+
+        copy_texts(src_pcb, dst_pcb)
         save_pcb(dst_pcb, not args.no_backup, args.backup_name)
     except ErgogenHelperException as e:
         print(f'ERROR: {e}')
@@ -234,6 +302,21 @@ def main():
         )
     )
     copy_traces_parser.set_defaults(func=cmd_copy_traces)
+
+    # Command: copy-texts
+    copy_texts_parser = subparsers.add_parser(
+        'copy-texts',
+        help='Copy texts from source PCB to destination PCB'
+    )
+    copy_texts_parser.add_argument(
+        'src_pcb_path',
+        help='The source PCB file path.'
+    )
+    copy_texts_parser.add_argument(
+        'dst_pcb_path',
+        help='The destination PCB file path.'
+    )
+    copy_texts_parser.set_defaults(func=cmd_copy_texts)
 
     # Command: copy-traces
     copy_zones_parser = subparsers.add_parser(
